@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoreo de Equipos</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            padding: 15px;
+            border-radius: 10px;
+            background: #1e293b;
+        }
+
+        .activo {
+            border-left: 6px solid #22c55e;
+        }
+
+        .inactivo {
+            border-left: 6px solid #ef4444;
+        }
+
+        .bar {
+            height: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .bg {
+            background: #334155;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🖥️ Monitoreo en Tiempo Real</h1>
+<h2 id="contador"></h2>
+
+<div class="grid" id="contenedor"></div>
+
+<script>
+async function cargarDatos() {
+    const res = await fetch("http://localhost:3000/api/equipos");
+    const data = await res.json();
+
+    const contenedor = document.getElementById("contenedor");
+    contenedor.innerHTML = "";
+
+    const lista = Object.values(data).sort((a, b) => {
+        return a.estado === "ACTIVO" ? -1 : 1;
+    });
+
+    document.getElementById("contador").innerText =
+        "Equipos monitoreados: " + lista.length;
+
+    for (const eq of lista) {
+
+        const card = document.createElement("div");
+        card.className = "card " + (eq.estado === "ACTIVO" ? "activo" : "inactivo");
+
+        card.innerHTML = `
+            <h3>${eq.hostname}</h3>
+            <p><b>Usuario:</b> ${eq.usuario}</p>
+
+            <p><b>CPU:</b> ${eq.cpu}%</p>
+            <div class="bg">
+                <div class="bar" style="width:${eq.cpu}%; background:#22c55e;"></div>
+            </div>
+
+            <p><b>RAM:</b> ${eq.ram}%</p>
+            <div class="bg">
+                <div class="bar" style="width:${eq.ram}%; background:#3b82f6;"></div>
+            </div>
+
+            <p><b>Estado:</b> ${eq.estado === "ACTIVO" ? "🟢 Activo" : "🔴 Inactivo"}</p>
+            <p><b>Sin conexión:</b> ${eq.segundosSinConexion}s</p>
+        `;
+
+        // 📊 Crear gráfica
+        const canvas = document.createElement("canvas");
+        canvas.height = 100;
+        card.appendChild(canvas);
+
+        contenedor.appendChild(card);
+
+        // 🔥 Obtener historial
+        const resHist = await fetch(`http://localhost:3000/api/historial/${eq.hostname}`);
+        const historial = await resHist.json();
+
+        const labels = historial.map(h =>
+            new Date(h.createdAt).toLocaleTimeString()
+        );
+
+        const cpuData = historial.map(h => h.cpu);
+
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'CPU %',
+                    data: cpuData,
+                    borderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { labels: { color: 'white' } }
+                },
+                scales: {
+                    x: { ticks: { color: 'white' } },
+                    y: { ticks: { color: 'white' } }
+                }
+            }
+        });
+    }
+}
+
+// 🔄 refresco automático
+setInterval(cargarDatos, 5000);
+cargarDatos();
+</script>
+
+</body>
+</html>
