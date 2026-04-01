@@ -1,0 +1,22 @@
+# Node
+node_modules/
+.env
+
+# Prisma
+prisma/dev.db
+prisma/generated/
+
+# Python
+__pycache__/
+*.pyc
+
+# Build
+dist/
+build/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
